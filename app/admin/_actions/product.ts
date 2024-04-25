@@ -5,6 +5,7 @@ import fs from "fs/promises";
 import db from "@/db/db";
 import { notFound, redirect } from "next/navigation";
 import { File } from "buffer";
+import { revalidatePath } from "next/cache";
 
 const fileSchema = z.instanceof(File, { message: "Required" });
 const imageSchema = fileSchema.refine(
@@ -55,6 +56,9 @@ export async function addProduct(prevState: unknown, formData: FormData) {
     },
   });
 
+  revalidatePath("/");
+  revalidatePath("/products");
+
   redirect("/admin/products");
 }
 
@@ -75,14 +79,14 @@ export async function updateProduct(
   if (product == null) return notFound();
 
   let filePath = product.filePath;
-  if(data.file && data.file.size > 0) {
+  if (data.file && data.file.size > 0) {
     await fs.unlink(filePath);
-    filePath = `products/${crypto.randomUUID()}-${data.file.name}`
+    filePath = `products/${crypto.randomUUID()}-${data.file.name}`;
     await fs.writeFile(filePath, Buffer.from(await data.file.arrayBuffer()));
   }
 
   let imagePath = product.imagePath;
-  if(data.image && data.image.size > 0) {
+  if (data.image && data.image.size > 0) {
     await fs.unlink(`public${product.imagePath}`);
     imagePath = `/products/${crypto.randomUUID()}-${data.image.name}`;
     await fs.writeFile(
@@ -92,7 +96,7 @@ export async function updateProduct(
   }
 
   await db.product.update({
-    where: {id},
+    where: { id },
     data: {
       name: data.name,
       description: data.description,
@@ -101,6 +105,9 @@ export async function updateProduct(
       imagePath,
     },
   });
+
+  revalidatePath("/");
+  revalidatePath("/products");
 
   redirect("/admin/products");
 }
@@ -115,6 +122,9 @@ export async function ToggleProductAvailability(
       isAvailableForPurchase,
     },
   });
+
+  revalidatePath("/");
+  revalidatePath("/products");
 }
 
 export async function DeleteProduct(id: string) {
@@ -128,4 +138,7 @@ export async function DeleteProduct(id: string) {
 
   fs.unlink(product.filePath);
   fs.unlink(`public${product.imagePath}`);
+
+  revalidatePath("/");
+  revalidatePath("/products");
 }
